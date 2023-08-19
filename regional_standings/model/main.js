@@ -1,7 +1,7 @@
 "use strict";
 
 const Ranking = require('./ranking');
-const RegionList = ['Europe', 'Americas', 'Asia'];
+const RegionList = ['Europe']//, 'Americas', 'Asia'];
 
 function run()
 {
@@ -30,9 +30,20 @@ function run()
     // Print markdown table for results
     console.log( `### ${standings} as of ${strDate}` );
     console.log( '' );
-    Ranking.displayRankings( teams, regions );
+    Ranking.displayRankings( teams, regions, 20 );
     console.log( '' );
     console.log( '_Event data for Regional Standings provided by HLTV.org_' );
+
+    // Print markdown table for event contribution of best team.
+    // let team = teams[1];
+    // console.log( `### Event contribution as of ${strDate} for ${team.name}` );
+    // console.log( '' );
+    // Ranking.displayEventContribution( team );
+
+    // // Print markdown table for match contribution of best team.
+    // console.log( `### Match contribution as of ${strDate} for ${team.name}` );
+    // console.log( '' );
+    // Ranking.displayWonMatchContribution( team, 10 );
 }
 
 run();

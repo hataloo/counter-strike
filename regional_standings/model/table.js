@@ -435,6 +435,14 @@ class Table
 		{
 			console.log( markdownRow( row ) );
 		}
+		// Print summary row if it has any content
+		if (summaryRow
+			.map( colStr => colStr.replace(/\s/g, '').length )
+			.reduce( (a,b) => a+b ) > 0 ) 
+		{
+				console.log( sepRow );
+				console.log( markdownRow( summaryRow) );
+			}
 	}
 }
 

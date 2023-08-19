@@ -45,6 +45,30 @@ function getPluralityRegion( players ) {
     return region;
 }
 
+class EventContribution {
+    constructor( teamEvent, teamId, winnings, discount ) {
+        this.teamEvent = teamEvent;
+        this.teamId = teamId;
+        this.winnings = winnings;
+        this.discountedWinnings = winnings * discount;
+        this.discount = discount;
+    }
+}
+
+class WonMatchContribution {
+    constructor( teamMatch, timestampModifier, prizepool, stakesModifier,
+        matchModifier, oppWinnings, oppTeamsDefeated, bounty, network ) {
+        this.teamMatch = teamMatch;
+        this.timestampModifier = timestampModifier;
+        this.prizepool = prizepool;
+        this.stakesModifier = stakesModifier;
+        this.matchModifier = matchModifier;
+        this.oppWinnings = oppWinnings;
+        this.oppTeamsDefeated = oppTeamsDefeated;
+        this.bounty = bounty;
+        this.network = network;
+    }
+}
 
 class Team {
     static TeamMatch = TeamMatch;
@@ -143,8 +167,17 @@ class Team {
             } );
     
             // Also calculate winnings
+            team.scaledPrizeEventMap = new Map();
             team.eventMap.forEach( teamEvent => {
-                team.scaledPrizePool += teamEvent.getTeamWinnings() * context.getTimestampModifier( teamEvent.event.lastMatchTime );
+                let discountedEventWinnings = teamEvent.getTeamWinnings() * context.getTimestampModifier( teamEvent.event.lastMatchTime );
+                team.scaledPrizePool += discountedEventWinnings;
+                team.scaledPrizeEventMap.set( teamEvent.event.eventId, 
+                    new EventContribution(
+                        teamEvent, 
+                        teamEvent.teamId, 
+                        teamEvent.getTeamWinnings(), 
+                        context.getTimestampModifier( teamEvent.event.lastMatchTime ) )
+                );
             } );
 
             // Also calculate wins on LAN
@@ -163,6 +196,9 @@ class Team {
 
         teams.forEach( team => {
             team.winnings = Math.min( team.scaledPrizePool / referencePrizePool, 1 );
+            team.scaledPrizeEventMap.forEach( eventContribution => {
+                eventContribution.normalizedWinnings = Math.min( eventContribution.discountedWinnings / referencePrizePool, 1);
+            } );
             team.teamsDefeated = Math.min( team.distinctTeamsDefeated / referenceOpponentCount, 1 );
             team.lanParticipation = Math.min( team.lanWins / referenceLanWins, 1 );
         } );
@@ -176,7 +212,7 @@ class Team {
             let bucketSize = 10;
             let bounties = [];
             let network = [];
-
+            team.wonMatchContributions = [];
             team.wonMatches.forEach( teamMatch => {
                 let timestampModifier = context.getTimestampModifier( teamMatch.match.matchStartTime );
                 let prizepool = Math.max(1, teamMatch.team.eventMap.get( teamMatch.match.eventId ).event.prizePool);
@@ -185,13 +221,20 @@ class Team {
 
                 bounties.push( teamMatch.opponent.winnings * matchModifier );
                 network.push( teamMatch.opponent.teamsDefeated * matchModifier );
+                team.wonMatchContributions.push( new WonMatchContribution( 
+                    teamMatch, timestampModifier, prizepool, stakesModifier, matchModifier,
+                    teamMatch.opponent.winnings,
+                    teamMatch.opponent.teamsDefeated,
+                    bounties[bounties.length - 1],
+                    network[network.length - 1]
+                ) );
             } );
     
             bounties.sort( (a,b) => b - a );
-            team.opponentWinnings = bounties.slice(0,(bucketSize - 1)).reduce( (a,b) => a + b, 0 ) / bucketSize;
+            team.opponentWinnings = bounties.slice(0,(bucketSize)).reduce( (a,b) => a + b, 0 ) / bucketSize;
 
             network.sort( (a,b) => b - a );
-            team.opponentVictories = network.slice(0,(bucketSize - 1)).reduce( (a,b) => a + b, 0 ) / bucketSize;
+            team.opponentVictories = network.slice(0,(bucketSize)).reduce( (a,b) => a + b, 0 ) / bucketSize;
         } );
 
         // Finally, build modifiers from calculated values
